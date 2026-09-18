@@ -18,44 +18,29 @@
 ## 🌟 Architecture Overview
 
 ```mermaid
-%%{init: {
-  'theme': 'base',
-  'themeVariables': {
-    'primaryColor': '#6366f1',
-    'primaryTextColor': '#ffffff',
-    'primaryBorderColor': '#4f46e5',
-    'lineColor': '#8b5cf6',
-    'fillType0': '#6366f1',
-    'fillType1': '#8b5cf6',
-    'fillType2': '#ec4899',
-    'sectionBkgColor': '#1e293b',
-    'altSectionBkgColor': '#334155',
-    'gridColor': '#475569'
-  }
-}}%%
 graph TD
-    A[🎓 Student User] --> B[🌐 Frontend React App]
-    B --> C[🔥 API Gateway]
-    C --> D[🤖 AI Services]
-    C --> E[💾 Database Layer]
-    C --> F[📊 Analytics Engine]
+    A["🎓 Student User"] --> B["🌐 Frontend React App"]
+    B --> C["🔥 API Gateway"]
+    C --> D["🤖 AI Services"]
+    C --> E["💾 Database Layer"]
+    C --> F["📊 Analytics Engine"]
     
-    subgraph "Frontend Stack"
-        B1[⚛️ React + TypeScript]
-        B2[🎨 Vite + TailwindCSS]
-        B3[🔄 React Router]
+    subgraph Frontend_Stack ["Frontend Stack"]
+        B1["⚛️ React + TypeScript"]
+        B2["🎨 Vite + TailwindCSS"]
+        B3["🔄 React Router"]
     end
     
-    subgraph "Backend Services"
-        D1[🧠 Medical AI]
-        D2[🛒 Stationery AI]
-        D3[📢 Voice Agent]
-        D4[🚗 Smart Parking]
+    subgraph Backend_Services ["Backend Services"]
+        D1["🧠 Medical AI"]
+        D2["🛒 Stationery AI"]
+        D3["📢 Voice Agent"]
+        D4["🚗 Smart Parking"]
     end
     
-    subgraph "Data Layer"
-        E1[🗄️ PostgreSQL]
-        E2[📋 SQLAlchemy ORM]
+    subgraph Data_Layer ["Data Layer"]
+        E1["🗄️ PostgreSQL"]
+        E2["📋 SQLAlchemy ORM"]
     end
     
     B --> B1
@@ -69,14 +54,6 @@ graph TD
     
     E --> E1
     E --> E2
-    
-    classDef frontend fill:#6366f1,stroke:#4f46e5,color:#ffffff,stroke-width:3px
-    classDef backend fill:#8b5cf6,stroke:#7c3aed,color:#ffffff,stroke-width:3px
-    classDef data fill:#ec4899,stroke:#db2777,color:#ffffff,stroke-width:3px
-    
-    class A,B,B1,B2,B3 frontend
-    class C,D,D1,D2,D3,D4 backend
-    class E,E1,E2 data
 ```
 
 ---
@@ -84,55 +61,40 @@ graph TD
 ## 🔄 User Journey Flow
 
 ```mermaid
-%%{init: {
-  'theme': 'base',
-  'themeVariables': {
-    'primaryColor': '#10b981',
-    'primaryTextColor': '#ffffff',
-    'primaryBorderColor': '#059669',
-    'lineColor': '#f59e0b',
-    'sectionBkgColor': '#1e293b',
-    'altSectionBkgColor': '#334155',
-    'taskBkgColor': '#10b981',
-    'taskTextColor': '#ffffff',
-    'taskBorderColor': '#059669'
-  }
-}}%%
 flowchart TD
-    Start([🚀 Launch App]) --> Login{🔐 Authenticated?}
-    Login -->|No| Auth[📱 Login/Register]
-    Auth --> Dashboard[📊 Dashboard]
+    Start(["🚀 Launch App"]) --> Login{"🔐 Authenticated?"}
+    Login -->|No| Auth["📱 Login / Register"]
+    Auth --> Dashboard["📊 Dashboard"]
     Login -->|Yes| Dashboard
     
-    Dashboard --> Module{📱 Choose Module}
+    Dashboard --> Module{"📱 Choose Module"}
     
-    Module -->|🏥 Medical| MedicalFlow[🏥 Medical Management]
-    Module -->|📚 Stationery| StationeryFlow[📚 Stationery Store]
-    Module -->|📢 Announcements| AnnounceFlow[📢 Voice Agency]
-    Module -->|🚗 Parking| ParkingFlow[🚗 Smart Parking]
+    Module -->|Medical| MedicalFlow["🏥 Medical Management"]
+    Module -->|Stationery| StationeryFlow["📚 Stationery Store"]
+    Module -->|Announcements| AnnounceFlow["📢 Voice Agency"]
+    Module -->|Parking| ParkingFlow["🚗 Smart Parking"]
     
-    MedicalFlow --> MedicalActions{🎯 Action}
-    MedicalActions -->|📝 Add| AddRecord[➕ Add Record]
-    MedicalActions -->|🔍 View| ViewRecords[📋 View Records]
-    MedicalActions -->|🎤 Voice| VoiceMedical[🎤 Voice Command]
-    MedicalActions -->|📊 Analytics| MedicalAnalytics[📊 Analytics]
+    MedicalFlow --> MedicalActions{"🎯 Action"}
+    MedicalActions -->|Add| AddRecord["➕ Add Record"]
+    MedicalActions -->|View| ViewRecords["📋 View Records"]
+    MedicalActions -->|Voice| VoiceMedical["🎤 Voice Command"]
+    MedicalActions -->|Analytics| MedicalAnalytics["📊 Analytics"]
     
-    StationeryFlow --> StationeryActions{🎯 Action}
-    StationeryActions -->|📦 Inventory| Inventory[📦 Manage Inventory]
-    StationeryActions -->|📈 Forecast| Forecast[📈 Demand Forecast]
-    StationeryActions -->|🛒 Orders| Orders[🛒 Process Orders]
+    StationeryFlow --> StationeryActions{"🎯 Action"}
+    StationeryActions -->|Inventory| Inventory["📦 Manage Inventory"]
+    StationeryActions -->|Forecast| Forecast["📈 Demand Forecast"]
+    StationeryActions -->|Orders| Orders["🛒 Process Orders"]
     
-    AnnounceFlow --> AnnounceActions{🎯 Action}
-    AnnounceActions -->|🎤 Record| RecordVoice[🎤 Record Message]
-    AnnounceActions -->|🌐 Broadcast| Broadcast[🌐 Broadcast]
-    AnnounceActions -->|📝 Schedule| Schedule[📝 Schedule]
+    AnnounceFlow --> AnnounceActions{"🎯 Action"}
+    AnnounceActions -->|Record| RecordVoice["🎤 Record Message"]
+    AnnounceActions -->|Broadcast| Broadcast["🌐 Broadcast"]
+    AnnounceActions -->|Schedule| Schedule["📝 Schedule"]
     
-    ParkingFlow --> ParkingActions{🎯 Action}
-    ParkingActions -->|🅿️ Check| CheckSlots[🅿️ Check Slots]
-    ParkingActions -->|🚗 Reserve| Reserve[🚗 Reserve Slot]
-    ParkingActions -->|📊 Status| ParkingStatus[📊 Real-time Status]
+    ParkingFlow --> ParkingActions{"🎯 Action"}
+    ParkingActions -->|Check| CheckSlots["🅿️ Check Slots"]
+    ParkingActions -->|Reserve| Reserve["🚗 Reserve Slot"]
+    ParkingActions -->|Status| ParkingStatus["📊 Real-time Status"]
     
-    %% Return flows
     AddRecord --> Dashboard
     ViewRecords --> Dashboard
     VoiceMedical --> Dashboard
@@ -149,16 +111,6 @@ flowchart TD
     CheckSlots --> Dashboard
     Reserve --> Dashboard
     ParkingStatus --> Dashboard
-    
-    classDef start fill:#10b981,stroke:#059669,color:#ffffff
-    classDef process fill:#3b82f6,stroke:#2563eb,color:#ffffff
-    classDef action fill:#f59e0b,stroke:#d97706,color:#ffffff
-    classDef module fill:#8b5cf6,stroke:#7c3aed,color:#ffffff
-    
-    class Start,Dashboard start
-    class Login,Auth process
-    class MedicalActions,StationeryActions,AnnounceActions,ParkingActions action
-    class MedicalFlow,StationeryFlow,AnnounceFlow,ParkingFlow module
 ```
 
 ---
@@ -166,20 +118,6 @@ flowchart TD
 ## 🔗 API Interaction Sequence
 
 ```mermaid
-%%{init: {
-  'theme': 'base',
-  'themeVariables': {
-    'primaryColor': '#ef4444',
-    'primaryTextColor': '#ffffff',
-    'primaryBorderColor': '#dc2626',
-    'lineColor': '#06b6d4',
-    'actorBkgColor': '#1e293b',
-    'actorBorder': '#475569',
-    'actorTextColor': '#f1f5f9',
-    'activationBkgColor': '#ef4444',
-    'activationBorderColor': '#dc2626'
-  }
-}}%%
 sequenceDiagram
     participant U as 👤 User
     participant F as 🌐 Frontend
@@ -188,7 +126,7 @@ sequenceDiagram
     participant D as 💾 Database
     participant AI as 🤖 AI Service
     
-    U->>F: 🖱️ Click "Add Medical Record"
+    U->>F: 🖱️ Click Add Medical Record
     F->>F: 📝 Open Form Modal
     U->>F: ⌨️ Fill Medical Details
     F->>A: 📤 POST /api/medical/
@@ -206,7 +144,7 @@ sequenceDiagram
     F-->>U: ✅ Success Notification
     
     Note over U,A: 🎤 Voice Command Flow
-    U->>F: 🎤 "Show medical records"
+    U->>F: 🎤 Request: Show medical records
     F->>A: 📤 POST /api/medical/voice
     A->>AI: 🗣️ Process Voice Command
     AI-->>A: 📝 Parsed Intent
@@ -224,20 +162,6 @@ sequenceDiagram
 ## 🏗️ System Architecture State Diagram
 
 ```mermaid
-%%{init: {
-  'theme': 'base',
-  'themeVariables': {
-    'primaryColor': '#14b8a6',
-    'primaryTextColor': '#ffffff',
-    'primaryBorderColor': '#0d9488',
-    'lineColor': '#f97316',
-    'altBackground': '#1e293b',
-    'background': '#0f172a',
-    'stateBkgColor': '#14b8a6',
-    'stateBorder': '#0d9488',
-    'stateTextColor': '#ffffff'
-  }
-}}%%
 stateDiagram-v2
     [*] --> Initializing
     
@@ -277,17 +201,7 @@ stateDiagram-v2
     RecoveryMode --> Listening: ✅ Recovered
     RecoveryMode --> [*]: ❌ Shutdown
     
-    classDef normal fill:#14b8a6,stroke:#0d9488,color:#ffffff
-    classDef error fill:#ef4444,stroke:#dc2626,color:#ffffff
-    classDef service fill:#8b5cf6,stroke:#7c3aed,color:#ffffff
-    classDef data fill:#ec4899,stroke:#db2777,color:#ffffff
-    classDef ai fill:#f59e0b,stroke:#d97706,color:#ffffff
-    
-    class Initializing,ServerStart,Listening,ProcessingRequest,AuthCheck,RouteRequest,ResponseGeneration normal
-    class Error,Unauthorized error
-    class MedicalService,StationeryService,AnnouncementService,ParkingService service
-    class DatabaseSetup,DatabaseQuery data
-    class AIProcessing ai
+
 ```
 
 ---
@@ -331,17 +245,6 @@ npm run dev
 
 ### 🏥 Medical Room Management
 ```mermaid
-%%{init: {
-  'theme': 'base',
-  'themeVariables': {
-    'primaryColor': '#dc2626',
-    'primaryTextColor': '#ffffff',
-    'primaryBorderColor': '#991b1b',
-    'lineColor': '#fbbf24',
-    'sectionBkgColor': '#1e293b',
-    'altSectionBkgColor': '#334155'
-  }
-}}%%
 pie showData
     title Medical Module Features
     "📝 Record Management" : 25
@@ -359,17 +262,6 @@ pie showData
 
 ### 📚 Stationery Store Intelligence
 ```mermaid
-%%{init: {
-  'theme': 'base',
-  'themeVariables': {
-    'primaryColor': '#059669',
-    'primaryTextColor': '#ffffff',
-    'primaryBorderColor': '#047857',
-    'lineColor': '#f59e0b',
-    'sectionBkgColor': '#1e293b',
-    'altSectionBkgColor': '#334155'
-  }
-}}%%
 graph LR
     A[📦 Inventory] --> B[📈 Demand Forecast]
     B --> C[🤖 AI Recommendations]
@@ -410,19 +302,8 @@ graph LR
 
 ### 🎨 Frontend Architecture
 ```mermaid
-%%{init: {
-  'theme': 'base',
-  'themeVariables': {
-    'primaryColor': '#3b82f6',
-    'primaryTextColor': '#ffffff',
-    'primaryBorderColor': '#2563eb',
-    'lineColor': '#10b981',
-    'sectionBkgColor': '#1e293b',
-    'altSectionBkgColor': '#334155'
-  }
-}}%%
 graph TB
-    subgraph "🎨 Frontend Stack"
+    subgraph Frontend_Stack ["Frontend Stack"]
         A[⚛️ React 18] --> B[📘 TypeScript]
         B --> C[🎨 TailwindCSS]
         C --> D[🚀 Vite]
@@ -431,13 +312,13 @@ graph TB
         F --> G[🎯 React Icons]
     end
     
-    subgraph "📊 State Management"
+    subgraph State_Management ["State Management"]
         H[🔄 React Hooks]
         I[📡 Axios]
         J[💾 Local Storage]
     end
     
-    subgraph "🎭 UI Components"
+    subgraph UI_Components ["UI Components"]
         K[📋 Custom Tables]
         L[🎤 Voice Recorder]
         M[📊 Charts.js]
@@ -463,38 +344,27 @@ graph TB
 
 ### 🚀 Backend Architecture
 ```mermaid
-%%{init: {
-  'theme': 'base',
-  'themeVariables': {
-    'primaryColor': '#8b5cf6',
-    'primaryTextColor': '#ffffff',
-    'primaryBorderColor': '#7c3aed',
-    'lineColor': '#f59e0b',
-    'sectionBkgColor': '#1e293b',
-    'altSectionBkgColor': '#334155'
-  }
-}}%%
 graph TB
-    subgraph "🚀 Backend Core"
+    subgraph Backend_Core ["Backend Core"]
         A[🐍 FastAPI] --> B[🔧 Pydantic]
         B --> C[🗄️ SQLAlchemy]
         C --> D[🌐 CORS Middleware]
     end
     
-    subgraph "🤖 AI Services"
+    subgraph AI_Services ["AI Services"]
         E[🧠 OpenRouter API]
         F[🎤 Speech Recognition]
         G[📊 Analytics Engine]
         H[🔍 NLP Processing]
     end
     
-    subgraph "💾 Data Layer"
+    subgraph Data_Layer ["Data Layer"]
         I[🗄️ PostgreSQL]
         J[📋 Database Models]
         K[🔄 Migrations]
     end
     
-    subgraph "🛡️ Security"
+    subgraph Security_Layer ["Security Layer"]
         L[🔐 JWT Auth]
         M[🚫 Rate Limiting]
         N[🔍 Input Validation]
@@ -530,17 +400,6 @@ graph TB
 ## 📊 Performance Metrics
 
 ```mermaid
-%%{init: {
-  'theme': 'base',
-  'themeVariables': {
-    'primaryColor': '#10b981',
-    'primaryTextColor': '#ffffff',
-    'primaryBorderColor': '#059669',
-    'lineColor': '#f59e0b',
-    'sectionBkgColor': '#1e293b',
-    'altSectionBkgColor': '#334155'
-  }
-}}%%
 gantt
     title CampusFlow Development Timeline
     dateFormat  YYYY-MM-DD
@@ -551,7 +410,7 @@ gantt
     AI Integration   :active, ai, 2024-02-20, 2024-04-01
     Voice Features   :voice, 2024-03-15, 2024-04-15
     section Phase 3
-    Testing & QA     :test, 2024-04-01, 2024-05-01
+    Testing and QA   :t1, 2024-04-01, 2024-05-01
     Deployment       :deploy, 2024-05-01, 2024-05-15
 ```
 
@@ -645,17 +504,6 @@ pytest --cov=backend --cov-report=html
 
 ### 🌐 Production Deployment
 ```mermaid
-%%{init: {
-  'theme': 'base',
-  'themeVariables': {
-    'primaryColor': '#6366f1',
-    'primaryTextColor': '#ffffff',
-    'primaryBorderColor': '#4f46e5',
-    'lineColor': '#ec4899',
-    'sectionBkgColor': '#1e293b',
-    'altSectionBkgColor': '#334155'
-  }
-}}%%
 flowchart TD
     A[👨‍💻 Developer] --> B[🔄 Git Push]
     B --> C[🚀 CI/CD Pipeline]
