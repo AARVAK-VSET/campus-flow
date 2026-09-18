@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+pydantic
+edge-tts
+python-multipart
+aiofiles
+httpx
+openai
+python-dotenv

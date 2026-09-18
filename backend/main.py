@@ -1,0 +1,58 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from backend.database import engine, Base
+from fastapi.staticfiles import StaticFiles
+from backend.routers import medical, stationery, announcements, parking, voice
+import os
+from datetime import datetime
+
+# Create tables
+Base.metadata.create_all(bind=engine)
+
+app = FastAPI(title="CampusFlow API", version="1.0.0", description="Intelligent Campus Task Automation API | AARVAK-VSET")
+
+# Mount audio cache
+AUDIO_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "audio_cache")
+os.makedirs(AUDIO_DIR, exist_ok=True)
+app.mount("/audio", StaticFiles(directory=AUDIO_DIR), name="audio")
+
+# Logging Middleware
+@app.middleware("http")
+async def log_requests(request, call_next):
+    print(f"DEBUG: {request.method} {request.url}")
+    response = await call_next(request)
+    print(f"DEBUG: Response status: {response.status_code}")
+    return response
+
+# CORS - Robust regex to allow any localhost/127.0.0.1 origin on any port
+app.add_middleware(
+    CORSMiddleware,
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1)(:\d+)?",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Health Check
+@app.get("/api/health")
+def health_check():
+    try:
+        return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+# Routes
+app.include_router(medical.router)
+app.include_router(stationery.router)
+app.include_router(announcements.router)
+app.include_router(parking.router)
+app.include_router(voice.router)
+
+@app.get("/")
+def read_root():
+    return {"message": "Welcome to CampusFlow API | AARVAK-VSET", "status": "active"}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CampusAI Connectivity Diagnostic</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #0a0a0f; color: #fff; padding: 2rem; max-width: 800px; margin: 0 auto; }
+        .card { background: #12121a; border: 1px solid #333; border-radius: 12px; padding: 2rem; margin-bottom: 2rem; }
+        .status { font-weight: bold; padding: 0.5rem 1rem; border-radius: 6px; display: inline-block; margin-bottom: 1rem; }
+        .online { background: rgba(0, 255, 163, 0.1); color: #00ffa3; }
+        .offline { background: rgba(255, 77, 77, 0.1); color: #ff4d4d; }
+        pre { background: #000; padding: 1rem; border-radius: 8px; overflow-x: auto; font-size: 0.9rem; border: 1px solid #222; }
+        h1 { color: #00ffa3; }
+        button { background: #00ffa3; color: #000; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        button:hover { background: #00e692; }
+        li { margin-bottom: 0.5rem; }
+    </style>
+</head>
+<body>
+    <h1>Connectivity Diagnostic Tool</h1>
+    <p>This tool test your browser's ability to reach the CampusAI backend directly.</p>
+
+    <div class="card">
+        <div id="status-box" class="status">Testing connection...</div>
+        <div id="results">
+            <p>Target URL: <code>http://localhost:8000/api/health</code></p>
+            <pre id="log">Starting tests...</pre>
+        </div>
+        <button onclick="runTest()">Run Diagnostic Again</button>
+    </div>
+
+    <div class="card">
+        <h3>Troubleshooting Checklist</h3>
+        <ul id="tips">
+            <li>Is <code>start_backend.bat</code> currently running?</li>
+            <li>Does the terminal window show <code>Uvicorn running on http://0.0.0.0:8000</code>?</li>
+            <li>Try opening <a href="http://localhost:8000/api/health" target="_blank" style="color: #00ffa3;">this link</a> in a new tab. If it loads, the backend is up.</li>
+            <li>If you see "CORS error" in the log above, your browser security might be blocking the request.</li>
+        </ul>
+    </div>
+
+    <script>
+        async function runTest() {
+            const log = document.getElementById('log');
+            const statusBox = document.getElementById('status-box');
+            log.textContent = "Connecting to http://localhost:8000/api/health...\n";
+            statusBox.textContent = "Testing...";
+            statusBox.className = "status";
+
+            const timer = setTimeout(() => {
+                log.textContent += "Timeout: Server is not responding.\n";
+            }, 5000);
+
+            try {
+                const start = Date.now();
+                const response = await fetch('http://localhost:8000/api/health', {
+                    method: 'GET',
+                    mode: 'cors'
+                });
+                clearTimeout(timer);
+                const end = Date.now();
+
+                log.textContent += `Response Status: ${response.status} ${response.statusText}\n`;
+                log.textContent += `Latency: ${end - start}ms\n`;
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log.textContent += `\nSuccess Data:\n${JSON.stringify(data, null, 2)}`;
+                    statusBox.textContent = "BACKEND ONLINE";
+                    statusBox.classList.add('online');
+                } else {
+                    log.textContent += `\nServer returned an error status. check main.py logs.`;
+                    statusBox.textContent = "RECHABLE BUT ERROR";
+                    statusBox.classList.add('offline');
+                }
+            } catch (err) {
+                clearTimeout(timer);
+                log.textContent += `\nCRITICAL ERROR: ${err.message}\n`;
+                log.textContent += "Possible causes:\n1. Backend not running\n2. Firewall blocking port 8000\n3. CORS policy blockade";
+                statusBox.textContent = "BACKEND OFFLINE";
+                statusBox.classList.add('offline');
+            }
+        }
+        runTest();
+    </script>
+</body>
+</html>
