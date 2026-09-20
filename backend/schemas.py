@@ -1,6 +1,6 @@
-from pydantic import BaseModel
+from pydantic import AwareDatetime, BaseModel
 from typing import Optional
-from datetime import datetime, date
+from datetime import date
 
 
 # ---- Medical ----
@@ -32,7 +32,7 @@ class MedicalRecordUpdate(BaseModel):
 
 class MedicalRecordOut(MedicalRecordBase):
     id: int
-    date_time: datetime
+    date_time: AwareDatetime
 
     class Config:
         from_attributes = True
@@ -81,7 +81,7 @@ class AnnouncementCreate(AnnouncementBase):
 
 class AnnouncementOut(AnnouncementBase):
     id: int
-    created_at: datetime
+    created_at: AwareDatetime
 
     class Config:
         from_attributes = True
@@ -101,14 +101,14 @@ class ParkingRecordCreate(ParkingRecordBase):
 class ParkingRecordUpdate(BaseModel):
     car_number: Optional[str] = None
     slot_number: Optional[int] = None
-    time_out: Optional[datetime] = None
+    time_out: Optional[AwareDatetime] = None
     status: Optional[str] = None
 
 
 class ParkingRecordOut(ParkingRecordBase):
     id: int
-    time_in: datetime
-    time_out: Optional[datetime] = None
+    time_in: AwareDatetime
+    time_out: Optional[AwareDatetime] = None
 
     class Config:
         from_attributes = True

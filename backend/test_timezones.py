@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 from fastapi.testclient import TestClient
+from pydantic import ValidationError
 from sqlalchemy import create_engine, text
 from sqlalchemy.dialects import sqlite
 from sqlalchemy.orm import sessionmaker
@@ -14,6 +15,7 @@ from backend.models.announcement import Announcement
 from backend.models.medical import MedicalRecord
 from backend.models.parking import ParkingRecord
 from backend.routers import medical
+from backend.schemas import MedicalRecordOut
 from backend.services import analytics
 from backend.services.analytics import get_medical_analytics
 from backend.timeutils import as_utc, utcnow
@@ -224,3 +226,54 @@ def test_sqlite_column_type_is_unchanged(model, columns):
     ddl = str(CreateTable(model.__table__).compile(dialect=sqlite.dialect()))
     for column in columns:
         assert f"{column} DATETIME" in ddl
+
+
+# ---- Timezone-aware API boundary ----
+
+def test_response_schema_rejects_naive_timestamps():
+    payload = dict(id=1, student_name="A", branch="CSE", year=1, issue="Fever")
+    with pytest.raises(ValidationError):
+        MedicalRecordOut(**payload, date_time=datetime(2026, 9, 20, 10, 0))
+    assert MedicalRecordOut(**payload, date_time=NOW).date_time == NOW
+
+
+def test_medical_list_returns_timestamps_with_a_utc_offset(client, engine):
+    with _session(engine) as s:
+        s.add(_record(datetime(2026, 9, 20, 10, 0)))
+        s.commit()
+    response = client.get("/api/medical/")
+    assert response.status_code == 200
+    assert response.json()[0]["date_time"].endswith(("Z", "+00:00"))
+
+
+def _create_parking(client):
+    response = client.post("/api/parking/", json={"car_number": "MH12AB1234", "slot_number": 1})
+    assert response.status_code == 200
+    return response.json()
+
+
+def test_parking_response_timestamps_carry_a_utc_offset(client):
+    assert _create_parking(client)["time_in"].endswith(("Z", "+00:00"))
+
+
+def test_parking_time_out_rejects_naive_datetime(client):
+    parking_id = _create_parking(client)["id"]
+    response = client.put(f"/api/parking/{parking_id}", json={"time_out": "2026-09-20T10:00:00"})
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"] == ["body", "time_out"]
+
+
+def test_parking_time_out_is_converted_to_utc(client):
+    parking_id = _create_parking(client)["id"]
+    response = client.put(
+        f"/api/parking/{parking_id}", json={"status": "free", "time_out": "2026-09-20T10:00:00+05:30"}
+    )
+    assert response.status_code == 200
+    assert response.json()["time_out"] in ("2026-09-20T04:30:00Z", "2026-09-20T04:30:00+00:00")
+
+
+def test_parking_time_out_accepts_the_frontend_iso_string(client):
+    # Parking.tsx sends new Date().toISOString()
+    parking_id = _create_parking(client)["id"]
+    response = client.put(f"/api/parking/{parking_id}", json={"time_out": "2026-09-20T10:00:00.123Z"})
+    assert response.status_code == 200
