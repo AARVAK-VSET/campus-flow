@@ -2,13 +2,17 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
+from sqlalchemy.dialects import sqlite
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
+from sqlalchemy.schema import CreateTable
 
 from backend.database import Base, get_db
 from backend.main import app
+from backend.models.announcement import Announcement
 from backend.models.medical import MedicalRecord
+from backend.models.parking import ParkingRecord
 from backend.routers import medical
 from backend.services import analytics
 from backend.services.analytics import get_medical_analytics
@@ -153,3 +157,70 @@ def test_medical_analytics_endpoint_counts_recent_visits(client, engine, monkeyp
     stats = response.json()["stats"]
     assert stats["total"] == 3
     assert sum(row["count"] for row in stats["daily_visits"]) == 2
+
+
+# ---- Timezone-aware model columns ----
+
+def test_aware_input_is_stored_as_utc_and_read_back_aware(engine):
+    ist_ten = datetime(2026, 9, 20, 10, 0, tzinfo=IST)  # 04:30 UTC
+    with _session(engine) as s:
+        s.add(_record(ist_ten))
+        s.commit()
+    with engine.connect() as conn:
+        raw = conn.execute(text("select date_time from medical_records")).scalar()
+    assert raw == "2026-09-20 04:30:00.000000"  # UTC wall clock, in the existing storage format
+    with _session(engine) as s:
+        stored = s.query(MedicalRecord).one().date_time
+    assert stored == ist_ten
+    assert stored.utcoffset() == timedelta(0)
+
+
+def test_naive_input_is_treated_as_utc(engine):
+    with _session(engine) as s:
+        s.add(_record(datetime(2026, 9, 20, 10, 0)))
+        s.commit()
+    with _session(engine) as s:
+        assert s.query(MedicalRecord).one().date_time == datetime(2026, 9, 20, 10, 0, tzinfo=UTC)
+
+
+def test_legacy_naive_rows_are_read_as_utc(engine):
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "insert into medical_records (student_name, branch, year, issue, date_time) "
+                "values ('A', 'CSE', 1, 'Fever', '2026-09-20 10:00:00.000000')"
+            )
+        )
+    with _session(engine) as s:
+        assert s.query(MedicalRecord).one().date_time == datetime(2026, 9, 20, 10, 0, tzinfo=UTC)
+
+
+def test_default_timestamps_are_aware_utc(engine):
+    before = utcnow() - timedelta(seconds=1)
+    with _session(engine) as s:
+        s.add_all(
+            [
+                MedicalRecord(student_name="A", branch="CSE", year=1, issue="Fever"),
+                ParkingRecord(car_number="X", slot_number=1),
+                Announcement(message="hi"),
+            ]
+        )
+        s.commit()
+    after = utcnow() + timedelta(seconds=1)
+    with _session(engine) as s:
+        parking = s.query(ParkingRecord).one()
+        stamps = [s.query(MedicalRecord).one().date_time, parking.time_in, s.query(Announcement).one().created_at]
+    for stamp in stamps:
+        assert stamp.utcoffset() == timedelta(0)
+        assert before <= stamp <= after
+    assert parking.time_out is None
+
+
+@pytest.mark.parametrize(
+    "model,columns",
+    [(MedicalRecord, ["date_time"]), (ParkingRecord, ["time_in", "time_out"]), (Announcement, ["created_at"])],
+)
+def test_sqlite_column_type_is_unchanged(model, columns):
+    ddl = str(CreateTable(model.__table__).compile(dialect=sqlite.dialect()))
+    for column in columns:
+        assert f"{column} DATETIME" in ddl

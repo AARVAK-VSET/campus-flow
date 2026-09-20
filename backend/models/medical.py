@@ -1,6 +1,6 @@
-from sqlalchemy import Column, Integer, String, DateTime
-from datetime import datetime
+from sqlalchemy import Column, Integer, String
 from backend.database import Base
+from backend.timeutils import UTCDateTime, utcnow
 
 
 class MedicalRecord(Base):
@@ -11,7 +11,7 @@ class MedicalRecord(Base):
     branch = Column(String, nullable=False)
     year = Column(Integer, nullable=False)
     issue = Column(String, nullable=False)
-    date_time = Column(DateTime, default=datetime.utcnow)
+    date_time = Column(UTCDateTime, default=utcnow)
     severity = Column(String, default="low")  # low, medium, high, critical
     treatment_status = Column(String, default="pending")  # pending, treating, discharged
     parent_contact = Column(String, nullable=True)

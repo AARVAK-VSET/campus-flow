@@ -1,6 +1,6 @@
-from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime
-from datetime import datetime
+from sqlalchemy import Column, Integer, String, Text, Boolean
 from backend.database import Base
+from backend.timeutils import UTCDateTime, utcnow
 
 
 class Announcement(Base):
@@ -11,5 +11,5 @@ class Announcement(Base):
     language = Column(String, default="en")
     repeat_interval = Column(Integer, default=0)  # seconds, 0 = no repeat
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(UTCDateTime, default=utcnow)
 
