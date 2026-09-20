@@ -3,13 +3,14 @@ import json
 import re
 from openai import AsyncOpenAI
 from dotenv import load_dotenv
-from backend.services.insight_cache import insight_cache
 
 # Explicitly load .env from the backend directory relative to this file
 env_path = os.path.join(os.path.dirname(__file__), '..', '.env')
 load_dotenv(env_path)
 
+# Debug logging for the API key (masking sensitive parts)
 api_key = os.getenv("OPENROUTER_API_KEY", "")
+print(f"DEBUG: OPENROUTER_API_KEY is {'set' if api_key else 'NOT SET'}. Key prefix: {api_key[:10]}...")
 
 client = None
 
@@ -91,9 +92,7 @@ Provide:
 2. Predicted diseases likely next month
 3. Risk warnings
 4. Recommendations"""
-    return await insight_cache.get_or_create(
-        "medical", data, lambda: _ask_llm(system, user)
-    )
+    return await _ask_llm(system, user)
 
 
 async def get_stationery_insights(data: dict) -> str:
@@ -109,9 +108,7 @@ Provide:
 2. Predicted peak visit timings
 3. Shortage risk warnings
 4. Restocking recommendations"""
-    return await insight_cache.get_or_create(
-        "stationery", data, lambda: _ask_llm(system, user)
-    )
+    return await _ask_llm(system, user)
 
 
 async def get_parking_insights(data: dict) -> str:
@@ -128,9 +125,7 @@ Provide:
 2. Predicted busy times for tomorrow
 3. Best slots to park in
 4. Recommendations for reducing congestion"""
-    return await insight_cache.get_or_create(
-        "parking", data, lambda: _ask_llm(system, user)
-    )
+    return await _ask_llm(system, user)
 
 
 async def generate_proposal(items: list) -> str:
