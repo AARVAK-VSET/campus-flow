@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from backend.database import engine, Base
+from backend.database import engine, Base, init_db
 from fastapi.staticfiles import StaticFiles
 from backend.routers import medical, stationery, announcements, parking, voice
 import os
@@ -9,8 +9,8 @@ import logging
 import time
 
 logger = logging.getLogger(__name__)
-# Create tables
-Base.metadata.create_all(bind=engine)
+# Create tables & indexes
+init_db()
 
 app = FastAPI(title="CampusFlow API", version="1.0.0", description="Intelligent Campus Task Automation API | AARVAK-VSET")
 
