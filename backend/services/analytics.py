@@ -1,9 +1,10 @@
 from collections import Counter
-from datetime import datetime, timedelta
+from datetime import timedelta
 from sqlalchemy.orm import Session
 from backend.models.medical import MedicalRecord
 from backend.models.stationery import StationeryItem
 from backend.models.parking import ParkingRecord
+from backend.timeutils import as_utc, utcnow
 
 
 def get_medical_analytics(db: Session) -> dict:
@@ -14,11 +15,13 @@ def get_medical_analytics(db: Session) -> dict:
     issue_counts = Counter(r.issue for r in records)
     severity_counts = Counter(r.severity for r in records)
 
-    # Daily visits (last 30 days)
-    now = datetime.utcnow()
+    # Daily visits (last 30 days). Timestamps may be naive (taken as UTC) or aware, so
+    # normalise to UTC before comparing them or bucketing them by day.
+    now = utcnow()
     thirty_days_ago = now - timedelta(days=30)
-    recent = [r for r in records if r.date_time and r.date_time >= thirty_days_ago]
-    daily = Counter(r.date_time.strftime("%Y-%m-%d") for r in recent)
+    visit_times = [as_utc(r.date_time) for r in records if r.date_time]
+    recent = [t for t in visit_times if t >= thirty_days_ago]
+    daily = Counter(t.strftime("%Y-%m-%d") for t in recent)
     daily_sorted = sorted(daily.items(), key=lambda x: x[0])
 
     # Trend: top rising issues
