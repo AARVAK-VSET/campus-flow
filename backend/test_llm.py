@@ -5,6 +5,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+import pytest
+@pytest.mark.asyncio
 async def test():
     api_key = os.getenv("OPENROUTER_API_KEY", "")
     print(f"API Key: {api_key[:10]}...")
