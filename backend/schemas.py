@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime, date
 
@@ -7,7 +7,7 @@ from datetime import datetime, date
 class MedicalRecordBase(BaseModel):
     student_name: str
     branch: str
-    year: int
+    year: int = Field(..., ge=1, le=5)
     issue: str
     severity: str = "low"
     treatment_status: str = "pending"
@@ -22,7 +22,7 @@ class MedicalRecordCreate(MedicalRecordBase):
 class MedicalRecordUpdate(BaseModel):
     student_name: Optional[str] = None
     branch: Optional[str] = None
-    year: Optional[int] = None
+    year: Optional[int] = Field(None, ge=1, le=5)
     issue: Optional[str] = None
     severity: Optional[str] = None
     treatment_status: Optional[str] = None
@@ -90,7 +90,7 @@ class AnnouncementOut(AnnouncementBase):
 # ---- Parking ----
 class ParkingRecordBase(BaseModel):
     car_number: str
-    slot_number: int
+    slot_number: int = Field(..., ge=1, le=100)
     status: str = "occupied"
 
 
@@ -100,7 +100,7 @@ class ParkingRecordCreate(ParkingRecordBase):
 
 class ParkingRecordUpdate(BaseModel):
     car_number: Optional[str] = None
-    slot_number: Optional[int] = None
+    slot_number: Optional[int] = Field(None, ge=1, le=100)
     time_out: Optional[datetime] = None
     status: Optional[str] = None
 
@@ -112,4 +112,3 @@ class ParkingRecordOut(ParkingRecordBase):
 
     class Config:
         from_attributes = True
-
