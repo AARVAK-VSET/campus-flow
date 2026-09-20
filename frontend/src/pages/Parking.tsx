@@ -17,7 +17,7 @@ const Parking = () => {
   const fetchData = async () => {
     try {
       const [resRecords, resDashboard] = await Promise.all([
-        api.get('parking/'),
+        api.get('parking/?status=active'),
         api.get('parking/analytics'),
       ]);
       setRecords(resRecords.data);

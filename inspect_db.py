@@ -17,6 +17,12 @@ schema = cursor.fetchall()
 for column in schema:
     print(column)
 
+print("\n--- Parking Records Indexes ---")
+cursor.execute("PRAGMA index_list(parking_records);")
+indexes = cursor.fetchall()
+for idx in indexes:
+    print(idx)
+
 print("\n--- Recent Parking Records ---")
 cursor.execute("SELECT * FROM parking_records ORDER BY id DESC LIMIT 5;")
 records = cursor.fetchall()

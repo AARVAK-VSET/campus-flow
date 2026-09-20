@@ -8,3 +8,4 @@ aiofiles
 httpx
 openai
 python-dotenv
+pytest

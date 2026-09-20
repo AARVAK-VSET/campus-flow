@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from backend.database import get_db
 from backend.models.parking import ParkingRecord
 from backend.schemas import ParkingRecordCreate, ParkingRecordUpdate, ParkingRecordOut
@@ -10,9 +10,44 @@ from datetime import datetime
 
 router = APIRouter(prefix="/api/parking", tags=["Parking"])
 
+VALID_STATUSES = {"active", "occupied", "free", "checked_out"}
+
 @router.get("/", response_model=List[ParkingRecordOut])
-def read_parking_records(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    records = db.query(ParkingRecord).offset(skip).limit(limit).all()
+@router.get("/records", response_model=List[ParkingRecordOut])
+def read_parking_records(
+    skip: int = 0,
+    limit: int = 100,
+    status: Optional[str] = None,
+    car_number: Optional[str] = None,
+    slot_number: Optional[int] = None,
+    db: Session = Depends(get_db)
+):
+    query = db.query(ParkingRecord)
+    
+    if status is not None:
+        normalized_status = status.strip().lower()
+        if normalized_status not in VALID_STATUSES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid status '{status}'. Valid statuses are: active, occupied, free, checked_out"
+            )
+        
+        if normalized_status in ("active", "occupied"):
+            query = query.filter(
+                (ParkingRecord.status.in_(["active", "occupied"])) & (ParkingRecord.time_out.is_(None))
+            )
+        elif normalized_status in ("free", "checked_out"):
+            query = query.filter(
+                (ParkingRecord.status.in_(["free", "checked_out"])) | (ParkingRecord.time_out.is_not(None))
+            )
+
+    if car_number is not None and car_number.strip():
+        query = query.filter(ParkingRecord.car_number == car_number.strip())
+
+    if slot_number is not None:
+        query = query.filter(ParkingRecord.slot_number == slot_number)
+
+    records = query.offset(skip).limit(limit).all()
     return records
 
 @router.post("/", response_model=ParkingRecordOut)
