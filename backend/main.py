@@ -1,11 +1,15 @@
 from fastapi import FastAPI
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from backend.database import engine, Base
 from fastapi.staticfiles import StaticFiles
-from backend.routers import medical, stationery, announcements, parking, voice
+from backend.routers import medical, stationery, announcements, parking, voice, dispatch
 import os
 from datetime import datetime
 import logging
+import math
 import time
 
 logger = logging.getLogger(__name__)
@@ -38,6 +42,19 @@ async def log_requests(request, call_next):
 
     return response
 
+def _json_safe_float(value: float):
+    return value if math.isfinite(value) else str(value)
+
+
+# FastAPI echoes each rejected input back in its 422 body. A NaN/Infinity sent in a
+# JSON body cannot be serialized, which would turn a clean 422 into a 500.
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=422,
+        content={"detail": jsonable_encoder(exc.errors(), custom_encoder={float: _json_safe_float})},
+    )
+
 # CORS - Robust regex to allow any localhost/127.0.0.1 origin on any port
 app.add_middleware(
     CORSMiddleware,
@@ -61,6 +78,7 @@ app.include_router(stationery.router)
 app.include_router(announcements.router)
 app.include_router(parking.router)
 app.include_router(voice.router)
+app.include_router(dispatch.router)
 
 @app.get("/")
 def read_root():

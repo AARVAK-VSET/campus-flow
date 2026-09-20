@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import api from '../api';
+import api, { fetchEmergencyQuote, EmergencyQuote } from '../api';
 import VoiceButton from '../components/VoiceButton';
 import VoiceAssistant from '../components/VoiceAssistant';
 import ChartCard from '../components/ChartCard';
@@ -25,7 +25,8 @@ const Medical = () => {
   });
   const [showCabModal, setShowCabModal] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
-  const [estimates, setEstimates] = useState<{ uber: string; ola: string } | null>(null);
+  const [quote, setQuote] = useState<EmergencyQuote | null>(null);
+  const [quoteError, setQuoteError] = useState('');
   const [calcLoading, setCalcLoading] = useState(false);
 
   const fetchData = async () => {
@@ -93,47 +94,71 @@ const Medical = () => {
     return null;
   };
 
-  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-    const R = 6371; // km
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
+  const getCurrentPosition = () =>
+    new Promise<GeolocationPosition>((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error('Geolocation is not supported'));
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(resolve, reject);
+    });
+
+  const formatFare = (amount: number, currency: string) =>
+    new Intl.NumberFormat('en-IN', { style: 'currency', currency, maximumFractionDigits: 0 }).format(amount);
+
+  const describeQuoteError = (err: any): string => {
+    const detail = err?.response?.data?.detail;
+    if (typeof detail === 'string') return detail;
+    if (Array.isArray(detail)) return 'The pickup or destination location was rejected as invalid';
+    return 'Could not reach the dispatch service';
   };
 
   useEffect(() => {
-    if (showCabModal && selectedStudent?.address) {
-      setCalcLoading(true);
-      setEstimates(null);
-      
-      const fetchEstimates = async () => {
+    setQuote(null);
+    setQuoteError('');
+    if (!showCabModal || !selectedStudent?.address) {
+      setCalcLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setCalcLoading(true);
+
+    const fetchQuote = async () => {
+      try {
         // 1. Get Destination Coords
         const destCoords = await getGeocode(selectedStudent.address);
-        
-        // 2. Get User Coords
-        navigator.geolocation.getCurrentPosition(async (pos) => {
-          const userLat = pos.coords.latitude;
-          const userLon = pos.coords.longitude;
-          
-          if (destCoords) {
-            const distance = calculateDistance(userLat, userLon, destCoords.lat, destCoords.lon);
-            // Mock Pricing: ₹50 base + ₹12/km (Uber), ₹45 base + ₹11.5/km (Ola)
-            const uberPrice = 50 + (distance * 12);
-            const olaPrice = 45 + (distance * 11.5);
-            setEstimates({
-              uber: `₹${Math.round(uberPrice)}`,
-              ola: `₹${Math.round(olaPrice)}`
-            });
-          }
-          setCalcLoading(false);
-        }, () => setCalcLoading(false));
-      };
+        if (!destCoords) {
+          if (!cancelled) setQuoteError('Could not locate the destination address');
+          return;
+        }
 
-      fetchEstimates();
-    }
+        // 2. Get User Coords
+        let pos: GeolocationPosition;
+        try {
+          pos = await getCurrentPosition();
+        } catch {
+          if (!cancelled) setQuoteError('Could not get your current location');
+          return;
+        }
+
+        // 3. Distance and fares are computed and validated by the backend
+        const result = await fetchEmergencyQuote(
+          { lat: pos.coords.latitude, lon: pos.coords.longitude },
+          { lat: destCoords.lat, lon: destCoords.lon }
+        );
+        if (!cancelled) setQuote(result);
+      } catch (err) {
+        if (!cancelled) setQuoteError(describeQuoteError(err));
+      } finally {
+        if (!cancelled) setCalcLoading(false);
+      }
+    };
+
+    fetchQuote();
+    return () => {
+      cancelled = true;
+    };
   }, [showCabModal, selectedStudent]);
 
   const handleCabSearch = (brand: string) => {
@@ -303,18 +328,23 @@ const Medical = () => {
               </div>
               {calcLoading ? (
                 <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Calculating estimates...</div>
-              ) : estimates ? (
-                <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: '0.5rem' }}>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '0.75rem', opacity: 0.6 }}>Uber Min.</div>
-                    <div style={{ color: '#fff', fontSize: '1.1rem', fontWeight: 'bold' }}>{estimates.uber}</div>
+              ) : quote ? (
+                <>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Distance: {quote.distance_km} km</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: '0.5rem' }}>
+                    {quote.quotes.map((q, i) => (
+                      <React.Fragment key={q.provider}>
+                        {i > 0 && <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)' }}></div>}
+                        <div style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: '0.75rem', opacity: 0.6 }}>{q.provider_name} Min.</div>
+                          <div style={{ color: '#fff', fontSize: '1.1rem', fontWeight: 'bold' }}>{formatFare(q.estimated_fare, quote.currency)}</div>
+                        </div>
+                      </React.Fragment>
+                    ))}
                   </div>
-                  <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '0.75rem', opacity: 0.6 }}>Ola Min.</div>
-                    <div style={{ color: '#fff', fontSize: '1.1rem', fontWeight: 'bold' }}>{estimates.ola}</div>
-                  </div>
-                </div>
+                </>
+              ) : quoteError ? (
+                <div style={{ fontSize: '0.85rem', color: '#ff4d4d' }}>{quoteError}</div>
               ) : (
                 <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Add address to see estimates</div>
               )}

@@ -1,5 +1,5 @@
-from pydantic import BaseModel
-from typing import Optional
+from pydantic import BaseModel, ConfigDict, Field
+from typing import List, Optional
 from datetime import datetime, date
 
 
@@ -112,4 +112,36 @@ class ParkingRecordOut(ParkingRecordBase):
 
     class Config:
         from_attributes = True
+
+
+# ---- Dispatch ----
+class GeoPoint(BaseModel):
+    """A validated WGS84 coordinate; strict so strings, booleans and NaN/inf are rejected."""
+    model_config = ConfigDict(extra="forbid")
+
+    lat: float = Field(..., ge=-90, le=90, strict=True, allow_inf_nan=False)
+    lon: float = Field(..., ge=-180, le=180, strict=True, allow_inf_nan=False)
+
+
+class EmergencyQuoteRequest(BaseModel):
+    # Distance and fares are always computed server-side; unknown fields
+    # (e.g. a client-supplied distance_km) are rejected rather than ignored.
+    model_config = ConfigDict(extra="forbid")
+
+    pickup: GeoPoint
+    dropoff: GeoPoint
+
+
+class ProviderQuote(BaseModel):
+    provider: str
+    provider_name: str
+    base_fare: float
+    per_km_rate: float
+    estimated_fare: float
+
+
+class EmergencyQuoteResponse(BaseModel):
+    currency: str
+    distance_km: float
+    quotes: List[ProviderQuote]
 

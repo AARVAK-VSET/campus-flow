@@ -259,6 +259,7 @@ pie showData
 - 🧠 **AI Health Insights** - Intelligent medical analysis
 - 📊 **Real-time Analytics** - Health trends and statistics
 - 🔔 **Smart Notifications** - Automated medication reminders
+- 🚕 **Emergency Cab Quotes** - Server-validated Uber/Ola fare estimates via `POST /api/dispatch/emergency-quote`
 
 ### 📚 Stationery Store Intelligence
 ```mermaid
