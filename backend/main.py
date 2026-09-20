@@ -5,7 +5,10 @@ from fastapi.staticfiles import StaticFiles
 from backend.routers import medical, stationery, announcements, parking, voice
 import os
 from datetime import datetime
+import logging
+import time
 
+logger = logging.getLogger(__name__)
 # Create tables
 Base.metadata.create_all(bind=engine)
 
@@ -19,9 +22,20 @@ app.mount("/audio", StaticFiles(directory=AUDIO_DIR), name="audio")
 # Logging Middleware
 @app.middleware("http")
 async def log_requests(request, call_next):
-    print(f"DEBUG: {request.method} {request.url}")
+    start_time = time.perf_counter()
+
     response = await call_next(request)
-    print(f"DEBUG: Response status: {response.status_code}")
+
+    duration = time.perf_counter() - start_time
+
+    logger.info(
+        "HTTP request: %s %s | status=%s | duration=%.4fs",
+        request.method,
+        request.url.path,
+        response.status_code,
+        duration,
+    )
+
     return response
 
 # CORS - Robust regex to allow any localhost/127.0.0.1 origin on any port
