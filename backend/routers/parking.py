@@ -9,6 +9,7 @@ from backend.services.llm import get_parking_insights
 from datetime import datetime
 
 router = APIRouter(prefix="/api/parking", tags=["Parking"])
+ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 
 @router.get("/", response_model=List[ParkingRecordOut])
 def read_parking_records(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
@@ -45,6 +46,12 @@ async def get_parking_dashboard(db: Session = Depends(get_db)):
 
 @router.post("/detect")
 async def detect_parking_slots(image: UploadFile = File(...)):
+    if image.content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail="Only JPEG, PNG, and WebP images are supported",
+        )
+
     # Simulated CV detection for 10 slots
     import random
     
@@ -61,4 +68,3 @@ async def detect_parking_slots(image: UploadFile = File(...)):
         })
     
     return {"slots": slots, "processing_time": "0.8s", "confidence": 0.94}
-
