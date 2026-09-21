@@ -56,6 +56,12 @@ const Announcements = () => {
       const res = await api.post(`announcements/${id}/speak`, {}, { responseType: 'blob' });
       const audioUrl = URL.createObjectURL(res.data);
       const audio = new Audio(audioUrl);
+      audio.onended = () => {
+        URL.revokeObjectURL(audioUrl);
+      };
+      audio.onerror = () => {
+        URL.revokeObjectURL(audioUrl);
+      };
       audio.play();
       toast.success('Playing announcement', { id: 'tts' });
     } catch (err) {
