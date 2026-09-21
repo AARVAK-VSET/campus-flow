@@ -3,8 +3,8 @@ import os
 import asyncio
 from dotenv import load_dotenv
 
-# Ensure backend folder is in path
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# Ensure the project root (the folder containing backend/) is in path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from backend.services.llm import conversational_form_filler
 

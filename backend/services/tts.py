@@ -3,7 +3,6 @@ import os
 import uuid
 
 AUDIO_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "audio_cache")
-os.makedirs(AUDIO_DIR, exist_ok=True)
 
 VOICE_MAP = {
     "en": "en-US-AriaNeural",
@@ -24,6 +23,7 @@ VOICE_MAP = {
 async def generate_speech(text: str, language: str = "en") -> str:
     """Generate speech audio from text. Returns the path to the audio file."""
     voice = VOICE_MAP.get(language, "en-US-AriaNeural")
+    os.makedirs(AUDIO_DIR, exist_ok=True)
     filename = f"{uuid.uuid4().hex}.mp3"
     filepath = os.path.join(AUDIO_DIR, filename)
 

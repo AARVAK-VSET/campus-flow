@@ -485,9 +485,9 @@ The project follows comprehensive testing practices with unit tests, integration
 
 ### 🧪 Test Commands
 ```bash
-# 🐍 Backend Tests
-cd backend
-pytest tests/ -v --cov=.
+# 🐍 Backend Tests (run from the project root; uses an in-memory database and
+# fake AI/speech services, so no API keys or internet are needed)
+pytest
 
 # ⚛️ Frontend Tests
 cd frontend

@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.database import engine, Base, init_db
@@ -9,15 +11,28 @@ import logging
 import time
 
 logger = logging.getLogger(__name__)
-# Create tables & indexes
-init_db()
 
-app = FastAPI(title="CampusFlow API", version="1.0.0", description="Intelligent Campus Task Automation API | AARVAK-VSET")
-
-# Mount audio cache
 AUDIO_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "audio_cache")
-os.makedirs(AUDIO_DIR, exist_ok=True)
-app.mount("/audio", StaticFiles(directory=AUDIO_DIR), name="audio")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Runs when the server starts (not when this module is imported), so importing
+    # the app - e.g. from a test - never creates the database file or audio folder.
+    init_db()  # Create tables & indexes
+    os.makedirs(AUDIO_DIR, exist_ok=True)
+    yield
+
+
+app = FastAPI(
+    title="CampusFlow API",
+    version="1.0.0",
+    description="Intelligent Campus Task Automation API | AARVAK-VSET",
+    lifespan=lifespan,
+)
+
+# Mount audio cache (the folder itself is created at startup / on first speech)
+app.mount("/audio", StaticFiles(directory=AUDIO_DIR, check_dir=False), name="audio")
 
 # Logging Middleware
 @app.middleware("http")
