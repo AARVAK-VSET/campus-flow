@@ -188,7 +188,13 @@ def test_turn_recovers_when_the_ai_reply_is_not_json(client, monkeypatch, spoken
 # ------------------------------------------------- conversational_form_filler
 
 
-def _run_form_filler(monkeypatch, ai_reply, current_data=None, user_input="Hi", context="medical"):
+def _run_form_filler(
+    monkeypatch,
+    ai_reply,
+    current_data=None,
+    user_input="Hi",
+    context="medical",
+):
     prompts = {}
 
     async def fake_ask_llm(system_prompt, user_prompt):
@@ -197,12 +203,23 @@ def _run_form_filler(monkeypatch, ai_reply, current_data=None, user_input="Hi", 
         return ai_reply
 
     monkeypatch.setattr(llm, "_ask_llm", fake_ask_llm)
-    result = asyncio.run(llm.conversational_form_filler(current_data or {}, user_input, context))
+    result = asyncio.run(
+        llm.conversational_form_filler(
+            current_data or {},
+            user_input,
+            context,
+        )
+    )
     return result, prompts
 
 
 def test_form_filler_parses_json_wrapped_in_markdown(monkeypatch):
-    reply = json.dumps({"updated_data": {"branch": "CSE"}, "next_question": "Year?"})
+    reply = json.dumps(
+        {
+            "updated_data": {"branch": "CSE"},
+            "next_question": "Year?",
+        }
+    )
 
     result, _ = _run_form_filler(monkeypatch, f"```json\n{reply}\n```")
 
@@ -212,8 +229,78 @@ def test_form_filler_parses_json_wrapped_in_markdown(monkeypatch):
     assert result["is_confirmed"] is False
 
 
+def test_form_filler_extracts_json_from_surrounding_conversation(monkeypatch):
+    reply = json.dumps(
+        {
+            "updated_data": {"branch": "CSE"},
+            "next_question": "What year are you in?",
+        }
+    )
+
+    conversational_reply = (
+        "Sure! I can help you fill out the form.\n\n"
+        f"```json\n{reply}\n```\n\n"
+        "Let me know if you need anything else."
+    )
+
+    result, _ = _run_form_filler(monkeypatch, conversational_reply)
+
+    assert result["updated_data"] == {"branch": "CSE"}
+    assert result["next_question"] == "What year are you in?"
+    assert result["is_complete"] is False
+    assert result["is_confirmed"] is False
+
+
+def test_form_filler_extracts_nested_json_object(monkeypatch):
+    reply = json.dumps(
+        {
+            "updated_data": {
+                "branch": "CSE",
+            },
+            "next_question": "What year are you in?",
+            "metadata": {
+                "source": "voice",
+            },
+        }
+    )
+
+    conversational_reply = f"Here is the structured response:\n{reply}\nHope that helps!"
+
+    result, _ = _run_form_filler(monkeypatch, conversational_reply)
+
+    assert result["updated_data"] == {"branch": "CSE"}
+    assert result["next_question"] == "What year are you in?"
+
+
+def test_form_filler_skips_invalid_json_and_extracts_first_valid_object(monkeypatch):
+    reply = json.dumps(
+        {
+            "updated_data": {"branch": "CSE"},
+            "next_question": "Year?",
+        }
+    )
+
+    conversational_reply = (
+        "I could not use this example: {not valid json}\n"
+        f"Here is the valid response: {reply}\n"
+    )
+
+    result, _ = _run_form_filler(monkeypatch, conversational_reply)
+
+    assert result["updated_data"] == {"branch": "CSE"}
+    assert result["next_question"] == "Year?"
+
+
 def test_form_filler_drops_fields_that_are_not_on_the_form(monkeypatch):
-    reply = json.dumps({"updated_data": {"branch": "CSE", "is_admin": True}, "next_question": "?"})
+    reply = json.dumps(
+        {
+            "updated_data": {
+                "branch": "CSE",
+                "is_admin": True,
+            },
+            "next_question": "?",
+        }
+    )
 
     result, _ = _run_form_filler(monkeypatch, reply)
 
@@ -221,19 +308,38 @@ def test_form_filler_drops_fields_that_are_not_on_the_form(monkeypatch):
 
 
 def test_form_filler_never_sends_unknown_fields_to_the_ai(monkeypatch):
-    reply = json.dumps({"updated_data": {}, "next_question": "?"})
+    reply = json.dumps(
+        {
+            "updated_data": {},
+            "next_question": "?",
+        }
+    )
 
     _, prompts = _run_form_filler(
-        monkeypatch, reply, current_data={"branch": "CSE", "secret": "hunter2"}
+        monkeypatch,
+        reply,
+        current_data={"branch": "CSE", "secret": "hunter2"},
     )
 
     assert "CSE" in prompts["user"]
     assert "hunter2" not in prompts["user"]
 
 
-@pytest.mark.parametrize("bad_reply", ["not json at all", "[1, 2, 3]", ""])
+@pytest.mark.parametrize(
+    "bad_reply",
+    [
+        "not json at all",
+        "[1, 2, 3]",
+        "",
+        "Here is some text, but there is no valid JSON object.",
+    ],
+)
 def test_form_filler_falls_back_when_reply_is_unusable(monkeypatch, bad_reply):
-    result, _ = _run_form_filler(monkeypatch, bad_reply, current_data={"branch": "CSE"})
+    result, _ = _run_form_filler(
+        monkeypatch,
+        bad_reply,
+        current_data={"branch": "CSE"},
+    )
 
     assert result["updated_data"] == {"branch": "CSE"}
     assert result["is_complete"] is False
@@ -271,7 +377,9 @@ def test_sanitize_redacts_injection_phrases(text):
 
 
 def test_sanitize_leaves_normal_text_alone():
-    assert llm.sanitize_transcription("I have a fever since yesterday") == "I have a fever since yesterday"
+    assert llm.sanitize_transcription(
+        "I have a fever since yesterday"
+    ) == "I have a fever since yesterday"
 
 
 def test_required_fields_complete_for_a_full_medical_form():
@@ -279,20 +387,36 @@ def test_required_fields_complete_for_a_full_medical_form():
 
 
 def test_required_fields_incomplete_when_a_field_is_missing():
-    incomplete = {k: v for k, v in COMPLETE_MEDICAL.items() if k != "issue"}
+    incomplete = {
+        k: v for k, v in COMPLETE_MEDICAL.items()
+        if k != "issue"
+    }
 
     assert llm.required_fields_complete(incomplete, "medical") is False
 
 
 def test_required_fields_incomplete_when_a_text_field_is_blank():
-    assert llm.required_fields_complete({**COMPLETE_MEDICAL, "branch": "   "}, "medical") is False
+    assert llm.required_fields_complete(
+        {
+            **COMPLETE_MEDICAL,
+            "branch": "   ",
+        },
+        "medical",
+    ) is False
 
 
 def test_required_fields_accepts_zero_values():
-    zeroes = {"item_name": "Pen", "price": 0, "quantity": 0}
+    zeroes = {
+        "item_name": "Pen",
+        "price": 0,
+        "quantity": 0,
+    }
 
     assert llm.required_fields_complete(zeroes, "stationery") is True
 
 
 def test_required_fields_false_for_unknown_context():
-    assert llm.required_fields_complete(COMPLETE_MEDICAL, "parking") is False
+    assert llm.required_fields_complete(
+        COMPLETE_MEDICAL,
+        "parking",
+    ) is False

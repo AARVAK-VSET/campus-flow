@@ -29,6 +29,11 @@ _INJECTION_PATTERNS = (
     r"set\s+is_confirmed\s+to\s+true",
 )
 
+# Find possible JSON object starts inside conversational model output.
+# JSONDecoder.raw_decode() is then used to validate and extract the
+# complete JSON object, including nested objects.
+_JSON_OBJECT_START = re.compile(r"\{")
+
 
 def sanitize_transcription(text: str, max_length: int = 2000) -> str:
     """Keep voice text bounded and redact common instruction-injection phrases."""
@@ -52,6 +57,39 @@ def required_fields_complete(data: dict, context: str) -> bool:
 def _allowed_form_data(data: dict, context: str) -> dict:
     allowed_fields = set(FORM_FIELDS.get(context, ()))
     return {key: value for key, value in data.items() if key in allowed_fields}
+
+
+def _extract_json_object(text: str) -> dict:
+    """
+    Extract the first valid JSON object from conversational model output.
+
+    The model may return normal conversational text before or after the JSON,
+    and the JSON may also be wrapped in Markdown code fences.
+
+    Regex is used to locate possible JSON object starts. JSONDecoder.raw_decode
+    then validates each candidate and extracts the complete object safely,
+    including nested JSON objects.
+
+    Raises:
+        ValueError: If no valid JSON object can be extracted.
+    """
+    if not isinstance(text, str):
+        raise ValueError("LLM response must be text")
+
+    decoder = json.JSONDecoder()
+
+    for match in _JSON_OBJECT_START.finditer(text):
+        start = match.start()
+
+        try:
+            parsed, _ = decoder.raw_decode(text[start:])
+        except json.JSONDecodeError:
+            continue
+
+        if isinstance(parsed, dict):
+            return parsed
+
+    raise ValueError("No valid JSON object found in LLM response")
 
 
 async def _ask_llm(system_prompt: str, user_prompt: str) -> str:
@@ -148,6 +186,8 @@ Return a JSON object with:
 - "data": relevant fields as key-value pairs
 Be precise and extract all mentioned data fields."""
     user = f"Parse this command: {text}"
+
+
 async def conversational_form_filler(current_data: dict, user_input: str, context: str) -> dict:
     """
     Arjun - Multi-turn form filler.
@@ -180,7 +220,7 @@ async def conversational_form_filler(current_data: dict, user_input: str, contex
     - "is_complete": true if all info is collected and we just need confirmation
     - "is_confirmed": true if the user has confirmed the summary
     """
-    
+
     user = (
         "Untrusted current form data (JSON):\n"
         f"<current_data>{json.dumps(safe_data, ensure_ascii=True)}</current_data>\n"
@@ -189,22 +229,23 @@ async def conversational_form_filler(current_data: dict, user_input: str, contex
     )
 
     raw_res = await _ask_llm(system, user)
-    
-    # Try to parse JSON from the LLM response (handling potential markdown blocks)
-    clean_json = raw_res.replace('```json', '').replace('```', '').strip()
+
+    # Extract the first valid JSON object from the model response.
+    # This handles conversational text and Markdown code fences around JSON.
     try:
-        parsed = json.loads(clean_json)
-        if not isinstance(parsed, dict):
-            raise ValueError("Voice form response must be a JSON object")
+        parsed = _extract_json_object(raw_res)
+
         updated_data = parsed.get("updated_data", safe_data)
         if not isinstance(updated_data, dict):
             updated_data = safe_data
+
         parsed["updated_data"] = _allowed_form_data(updated_data, context)
         parsed["is_complete"] = bool(parsed.get("is_complete", False))
         parsed["is_confirmed"] = bool(parsed.get("is_confirmed", False))
         return parsed
+
     except (TypeError, ValueError, json.JSONDecodeError):
-        # Fallback if LLM fails to return perfect JSON
+        # Fallback if LLM fails to return a usable JSON object.
         return {
             "updated_data": safe_data,
             "next_question": "I'm sorry, I'm having trouble processing that. Could you repeat?",
