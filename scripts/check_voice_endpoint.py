@@ -1,4 +1,4 @@
-import requests
+import httpx
 
 url = "http://localhost:8000/api/voice/process"
 data = {
@@ -9,7 +9,7 @@ data = {
 
 try:
     print("Sending request to voice/process...")
-    response = requests.post(url, json=data, timeout=30)
+    response = httpx.post(url, json=data, timeout=30)
     print("Status:", response.status_code)
     print("Body:", response.json())
 except Exception as e:
