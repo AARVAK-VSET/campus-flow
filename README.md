@@ -289,15 +289,6 @@ graph LR
 - 🌐 **Campus-Wide Reach** - Multi-location delivery
 - 📱 **Mobile Integration** - Remote announcement control
 
-#### ⏰ Recurring announcements
-
-An announcement that is **active** and has a `repeat_interval` greater than 0 (in seconds) is broadcast automatically by a background scheduler that starts and stops with the API:
-
-- The first broadcast happens one full interval after the scheduler first sees the announcement, then it repeats every `repeat_interval` seconds.
-- On every broadcast the message is turned into speech (text-to-speech) and a broadcast event is recorded.
-- `GET /api/announcements/broadcasts?limit=20` returns the most recent broadcasts, newest first, each with an `audio_url` (or an `error` if speech generation failed).
-- Deleting or deactivating an announcement, or setting its interval to 0, stops it. Changing the interval restarts its countdown.
-
 ### 🚗 Smart Parking Solution
 - 🅿️ **Real-time Slot Detection** - Live parking availability
 - 📸 **License Plate Recognition** - Automated vehicle tracking

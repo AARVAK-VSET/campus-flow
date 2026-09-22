@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -6,11 +6,9 @@ import edge_tts
 from backend.database import get_db
 from backend.models.announcement import Announcement
 from backend.schemas import AnnouncementCreate, AnnouncementOut
-from backend.services.scheduler import scheduler, scheduler_lifespan
 from backend.services.tts import VOICE_MAP
 
-# The lifespan starts the recurring-announcement scheduler with the app and stops it on shutdown.
-router = APIRouter(prefix="/api/announcements", tags=["Announcements"], lifespan=scheduler_lifespan)
+router = APIRouter(prefix="/api/announcements", tags=["Announcements"])
 
 
 async def _audio_only(communicate: edge_tts.Communicate):
@@ -23,13 +21,6 @@ async def _audio_only(communicate: edge_tts.Communicate):
 def read_announcements(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     announcements = db.query(Announcement).offset(skip).limit(limit).all()
     return announcements
-
-
-@router.get("/broadcasts")
-def read_recent_broadcasts(limit: int = Query(20, ge=1, le=100)):
-    """Most recent scheduled broadcasts of recurring announcements, newest first."""
-    recent = list(scheduler.history)[-limit:]
-    return [event.to_dict() for event in reversed(recent)]
 
 
 @router.post("/", response_model=AnnouncementOut)
