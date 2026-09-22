@@ -3,7 +3,6 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.database import engine, Base, init_db
-from fastapi.staticfiles import StaticFiles
 from backend.routers import medical, stationery, announcements, parking, voice
 import os
 from datetime import datetime
@@ -30,9 +29,6 @@ app = FastAPI(
     description="Intelligent Campus Task Automation API | AARVAK-VSET",
     lifespan=lifespan,
 )
-
-# Mount audio cache (the folder itself is created at startup / on first speech)
-app.mount("/audio", StaticFiles(directory=AUDIO_DIR, check_dir=False), name="audio")
 
 # Logging Middleware
 @app.middleware("http")

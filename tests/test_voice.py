@@ -64,7 +64,7 @@ def test_turn_returns_next_question_and_audio_url(client, monkeypatch, spoken):
         "next_question": "Which branch are you in?",
         "is_complete": False,
         "is_confirmed": False,
-        "audio_url": "/audio/question.mp3",
+        "audio_url": "/api/voice/audio/question.mp3",
     }
     assert spoken == ["Which branch are you in?"]
 
