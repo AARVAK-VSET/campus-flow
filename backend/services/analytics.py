@@ -1,5 +1,6 @@
 from collections import Counter
 from datetime import datetime, timedelta
+from sqlalchemy import String, type_coerce
 from sqlalchemy.orm import Session
 from backend.models.medical import MedicalRecord
 from backend.models.stationery import StationeryItem
@@ -53,16 +54,34 @@ def get_stationery_analytics(db: Session) -> dict:
     }
 
 
+def _parse_timestamp(value):
+    """Return a datetime for valid timestamps, or None for null/corrupt values."""
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, str):
+        try:
+            return datetime.fromisoformat(value.strip())
+        except ValueError:
+            return None
+    return None
+
+
 def get_parking_analytics(db: Session) -> dict:
-    records = db.query(ParkingRecord).all()
+    # Load time_in as raw text so corrupt legacy values don't fail datetime parsing at query time
+    records = db.query(
+        ParkingRecord.status,
+        ParkingRecord.slot_number,
+        type_coerce(ParkingRecord.time_in, String).label("time_in"),
+    ).all()
     if not records:
         return {"total": 0, "occupied": 0, "free": 0, "hourly": [], "slot_usage": []}
 
     occupied = sum(1 for r in records if r.status == "occupied")
     free = sum(1 for r in records if r.status == "free")
 
-    # Hourly distribution
-    hourly = Counter(r.time_in.hour for r in records if r.time_in)
+    # Hourly distribution (null or corrupt timestamps are skipped)
+    timestamps = (_parse_timestamp(r.time_in) for r in records)
+    hourly = Counter(t.hour for t in timestamps if t)
     hourly_sorted = sorted(hourly.items(), key=lambda x: x[0])
 
     # Slot usage frequency
@@ -75,4 +94,3 @@ def get_parking_analytics(db: Session) -> dict:
         "hourly": [{"hour": h, "count": c} for h, c in hourly_sorted],
         "slot_usage": [{"slot": s, "count": c} for s, c in sorted(slot_usage.items())],
     }
-
