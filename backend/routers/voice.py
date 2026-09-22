@@ -1,6 +1,5 @@
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
-from starlette.background import BackgroundTask
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 from backend.services.llm import (
@@ -15,22 +14,17 @@ router = APIRouter(prefix="/api/voice", tags=["Voice"])
 AUDIO_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "audio_cache")
 
 
-def _cleanup_audio_file(path: str) -> None:
-    try:
-        os.remove(path)
-    except FileNotFoundError:
-        pass
-
-
 async def _generate_speech(text: str) -> str:
     from backend.services.tts import generate_speech
 
     return await generate_speech(text)
 
+
 class VoiceProcessRequest(BaseModel):
     user_input: str
     current_data: Dict[str, Any]
     context: str = "medical"
+
 
 @router.post("/process")
 async def process_voice_turn(request: VoiceProcessRequest):
@@ -40,7 +34,6 @@ async def process_voice_turn(request: VoiceProcessRequest):
     # 1. Process with LLM to get next question/updates
     if request.context not in FORM_FIELDS:
         raise HTTPException(status_code=400, detail="Unsupported voice form context")
-
     result = await conversational_form_filler(request.current_data, request.user_input, request.context)
     updated_data = result.get("updated_data", request.current_data)
     if not isinstance(updated_data, dict):
@@ -48,13 +41,13 @@ async def process_voice_turn(request: VoiceProcessRequest):
     fields_complete = required_fields_complete(updated_data, request.context)
     is_confirmed = bool(result.get("is_confirmed", False) and fields_complete)
     is_complete = bool(result.get("is_complete", False) and fields_complete)
-    
+
     # 2. Generate audio for the next question
     next_question = result.get("next_question", "")
     audio_path = await _generate_speech(next_question)
     audio_filename = os.path.basename(audio_path)
     audio_url = f"/api/voice/audio/{audio_filename}"
-    
+
     return {
         "updated_data": updated_data,
         "next_question": next_question,
@@ -62,6 +55,7 @@ async def process_voice_turn(request: VoiceProcessRequest):
         "is_confirmed": is_confirmed,
         "audio_url": audio_url
     }
+
 
 @router.get("/audio/{filename}", include_in_schema=False)
 async def get_audio(filename: str):
@@ -71,5 +65,4 @@ async def get_audio(filename: str):
     return FileResponse(
         filepath,
         media_type="audio/mpeg",
-        background=BackgroundTask(_cleanup_audio_file, filepath),
     )
