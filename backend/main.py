@@ -1,8 +1,10 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from backend.database import engine, Base, init_db
+from backend.services.llm import AIServiceTimeoutError
 from fastapi.staticfiles import StaticFiles
 from backend.routers import medical, stationery, announcements, parking, voice
 import os
@@ -30,6 +32,26 @@ app = FastAPI(
     description="Intelligent Campus Task Automation API | AARVAK-VSET",
     lifespan=lifespan,
 )
+
+
+@app.exception_handler(AIServiceTimeoutError)
+async def ai_service_timeout_handler(
+    request: Request,
+    exc: AIServiceTimeoutError,
+):
+    logger.warning(
+        "External AI service timeout: %s %s | %s",
+        request.method,
+        request.url.path,
+        str(exc),
+    )
+    return JSONResponse(
+        status_code=504,
+        content={
+            "detail": str(exc),
+        },
+    )
+
 
 # Mount audio cache (the folder itself is created at startup / on first speech)
 app.mount("/audio", StaticFiles(directory=AUDIO_DIR, check_dir=False), name="audio")
@@ -84,4 +106,3 @@ def read_root():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
-
