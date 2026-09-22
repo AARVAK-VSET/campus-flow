@@ -1,7 +1,7 @@
 import os
 import json
 import re
-from openai import AsyncOpenAI
+from openai import APITimeoutError,AsyncOpenAI
 from dotenv import load_dotenv
 
 # Explicitly load .env from the backend directory relative to this file
@@ -15,6 +15,10 @@ print(f"DEBUG: OPENROUTER_API_KEY is {'set' if api_key else 'NOT SET'}. Key pref
 client = None
 
 MODEL = "google/gemini-2.0-flash-001"
+
+# External AI request policy
+AI_TIMEOUT = 30.0
+AI_MAX_RETRIES = 2
 
 FORM_FIELDS = {
     "medical": ("student_name", "branch", "year", "issue", "severity"),
@@ -67,7 +71,7 @@ def _extract_json_object(text: str) -> dict:
     and the JSON may also be wrapped in Markdown code fences.
 
     Regex is used to locate possible JSON object starts. JSONDecoder.raw_decode
-    then validates each candidate and extracts the complete object safely,
+    then validates each candidate and extracts the complete JSON object safely,
     including nested JSON objects.
 
     Raises:
@@ -92,16 +96,25 @@ def _extract_json_object(text: str) -> dict:
     raise ValueError("No valid JSON object found in LLM response")
 
 
+class AIServiceTimeoutError(Exception):
+    """Raised when an external AI service exceeds the configured timeout."""
+
+
 async def _ask_llm(system_prompt: str, user_prompt: str) -> str:
+    if not api_key:
+        return "AI analysis unavailable: OPENROUTER_API_KEY is not configured."
+
+    global client
+
+    if client is None:
+        client = AsyncOpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=api_key,
+            timeout=AI_TIMEOUT,
+            max_retries=AI_MAX_RETRIES,
+        )
+
     try:
-        if not api_key:
-            return "AI analysis unavailable: OPENROUTER_API_KEY is not configured."
-        global client
-        if client is None:
-            client = AsyncOpenAI(
-                base_url="https://openrouter.ai/api/v1",
-                api_key=api_key,
-            )
         response = await client.chat.completions.create(
             model=MODEL,
             messages=[
@@ -112,8 +125,11 @@ async def _ask_llm(system_prompt: str, user_prompt: str) -> str:
             temperature=0.7,
         )
         return response.choices[0].message.content or "No insights available."
-    except Exception as e:
-        return f"AI analysis unavailable: {str(e)}"
+
+    except APITimeoutError as exc:
+        raise AIServiceTimeoutError(
+            f"External AI service timed out after {AI_TIMEOUT:g} seconds."
+        ) from exc
 
 
 async def get_medical_insights(data: dict) -> str:

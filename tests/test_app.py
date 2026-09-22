@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 
 import backend.main as main_module
 from backend.main import app
+from backend.services.llm import AIServiceTimeoutError
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 BACKEND_DIR = REPO_ROOT / "backend"
@@ -65,3 +66,30 @@ def test_startup_initialises_database_and_audio_folder(monkeypatch, tmp_path):
     with TestClient(app):  # entering the block runs the startup code
         assert calls == ["init_db"]
         assert audio_dir.is_dir()
+
+
+def test_ai_service_timeout_returns_504(client, monkeypatch):
+    async def fake_form_filler(current_data, user_input, context):
+        raise AIServiceTimeoutError(
+            "External AI service timed out after 30 seconds."
+        )
+
+    monkeypatch.setattr(
+        main_module.voice,
+        "conversational_form_filler",
+        fake_form_filler,
+    )
+
+    response = client.post(
+        "/api/voice/process",
+        json={
+            "user_input": "I have a fever",
+            "current_data": {},
+            "context": "medical",
+        },
+    )
+
+    assert response.status_code == 504
+    assert response.json() == {
+        "detail": "External AI service timed out after 30 seconds."
+    }
