@@ -1,4 +1,6 @@
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import FileResponse
+from starlette.background import BackgroundTask
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 from backend.services.llm import (
@@ -9,6 +11,15 @@ from backend.services.llm import (
 import os
 
 router = APIRouter(prefix="/api/voice", tags=["Voice"])
+
+AUDIO_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "audio_cache")
+
+
+def _cleanup_audio_file(path: str) -> None:
+    try:
+        os.remove(path)
+    except FileNotFoundError:
+        pass
 
 
 async def _generate_speech(text: str) -> str:
@@ -42,7 +53,7 @@ async def process_voice_turn(request: VoiceProcessRequest):
     next_question = result.get("next_question", "")
     audio_path = await _generate_speech(next_question)
     audio_filename = os.path.basename(audio_path)
-    audio_url = f"/audio/{audio_filename}"
+    audio_url = f"/api/voice/audio/{audio_filename}"
     
     return {
         "updated_data": updated_data,
@@ -51,3 +62,14 @@ async def process_voice_turn(request: VoiceProcessRequest):
         "is_confirmed": is_confirmed,
         "audio_url": audio_url
     }
+
+@router.get("/audio/{filename}", include_in_schema=False)
+async def get_audio(filename: str):
+    filepath = os.path.join(AUDIO_DIR, os.path.basename(filename))
+    if not os.path.isfile(filepath):
+        raise HTTPException(status_code=404, detail="Audio file not found")
+    return FileResponse(
+        filepath,
+        media_type="audio/mpeg",
+        background=BackgroundTask(_cleanup_audio_file, filepath),
+    )
