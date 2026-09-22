@@ -2,6 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import api from '../api';
 import toast from 'react-hot-toast';
 import { FaMicrophone, FaStop, FaRobot, FaCheckCircle, FaTimes } from 'react-icons/fa';
+import {
+  SPEECH_LISTEN_DEBOUNCE_MS,
+  scheduleListenAfterPlayback,
+  shouldAcceptTranscript,
+} from '../utils/speechDebounce';
 
 interface VoiceAssistantProps {
   context: string;
@@ -17,6 +22,39 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ context, onComplete, on
   const [lastQuestion, setLastQuestion] = useState("Namaste! I am Arjun. Click start to begin.");
   const [transcript, setTranscript] = useState("");
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const listenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recognitionRef = useRef<any>(null);
+  const mountedRef = useRef(true);
+
+  const clearListenTimer = () => {
+    if (listenTimerRef.current) {
+      clearTimeout(listenTimerRef.current);
+      listenTimerRef.current = null;
+    }
+  };
+
+  const stopRecognition = () => {
+    try {
+      recognitionRef.current?.abort?.();
+      recognitionRef.current?.stop?.();
+    } catch {
+      // Recognition may already be idle.
+    }
+    recognitionRef.current = null;
+  };
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      clearListenTimer();
+      stopRecognition();
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
 
   const startConversation = async () => {
     await processTurn("Hello Arjun, I want to add a record.");
@@ -54,7 +92,8 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ context, onComplete, on
   };
 
   const playArjunVoice = (url: string) => {
-    // ... (playArjunVoice logic remains same)
+    clearListenTimer();
+    stopRecognition();
     if (audioRef.current) {
       audioRef.current.pause();
     }
@@ -62,10 +101,20 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ context, onComplete, on
     const audio = new Audio(fullUrl);
     audioRef.current = audio;
     
-    audio.onplay = () => setIsSpeaking(true);
+    audio.onplay = () => {
+      setIsSpeaking(true);
+      clearListenTimer();
+      stopRecognition();
+    };
     audio.onended = () => {
       setIsSpeaking(false);
-      startListening(); 
+      clearListenTimer();
+      listenTimerRef.current = scheduleListenAfterPlayback(() => {
+        listenTimerRef.current = null;
+        if (mountedRef.current) {
+          startListening();
+        }
+      }, SPEECH_LISTEN_DEBOUNCE_MS);
     };
     audio.onerror = () => {
       setIsSpeaking(false);
@@ -85,14 +134,22 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ context, onComplete, on
       return;
     }
 
+    stopRecognition();
     const recognition = new SpeechRecognition();
+    recognitionRef.current = recognition;
     recognition.lang = 'en-US';
     recognition.continuous = false;
+    recognition.interimResults = false;
 
     recognition.onstart = () => setIsListening(true);
     recognition.onresult = (event: any) => {
-      const text = event.results[0][0].transcript;
+      const result = event.results[0][0];
+      const text = result.transcript;
+      const confidence = result.confidence;
       setIsListening(false);
+      if (!shouldAcceptTranscript(text, confidence)) {
+        return;
+      }
       processTurn(text);
     };
     recognition.onerror = (e: any) => {
