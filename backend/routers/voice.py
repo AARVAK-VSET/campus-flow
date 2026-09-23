@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
+from starlette.background import BackgroundTask
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 from backend.services.llm import (
@@ -7,6 +8,7 @@ from backend.services.llm import (
     conversational_form_filler,
     required_fields_complete,
 )
+from backend.services.tts import cleanup_expired_audio
 import os
 
 router = APIRouter(prefix="/api/voice", tags=["Voice"])
@@ -65,4 +67,9 @@ async def get_audio(filename: str):
     return FileResponse(
         filepath,
         media_type="audio/mpeg",
+        # Sweeps any cache files past their 24h TTL once this response has
+        # finished streaming. It does not delete `filepath` itself, so an
+        # identical next request can still reuse the cached file (see
+        # generate_speech()'s content-hash cache in services/tts.py).
+        background=BackgroundTask(cleanup_expired_audio),
     )
