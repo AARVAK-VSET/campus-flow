@@ -4,6 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from backend.database import engine, Base, init_db
+from backend.services.llm import AIServiceTimeoutError
 from backend.routers import medical, stationery, announcements, parking, voice
 import os
 from datetime import datetime
@@ -30,6 +31,25 @@ app = FastAPI(
     description="Intelligent Campus Task Automation API | AARVAK-VSET",
     lifespan=lifespan,
 )
+
+
+@app.exception_handler(AIServiceTimeoutError)
+async def ai_service_timeout_handler(
+    request: Request,
+    exc: AIServiceTimeoutError,
+):
+    logger.warning(
+        "External AI service timeout: %s %s | %s",
+        request.method,
+        request.url.path,
+        str(exc),
+    )
+    return JSONResponse(
+        status_code=504,
+        content={
+            "detail": str(exc),
+        },
+    )
 
 # Logging Middleware
 @app.middleware("http")
