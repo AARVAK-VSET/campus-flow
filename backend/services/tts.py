@@ -36,7 +36,7 @@ def _cache_filename(text: str, voice: str) -> str:
     return f"{content_hash}.mp3"
 
 
-def _cleanup_expired_audio() -> None:
+def cleanup_expired_audio() -> None:
     """Remove cached audio files that have exceeded the configured TTL."""
     if not os.path.isdir(AUDIO_DIR):
         return
@@ -62,7 +62,7 @@ async def generate_speech(text: str, language: str = "en") -> str:
     voice = VOICE_MAP.get(language, "en-US-AriaNeural")
 
     os.makedirs(AUDIO_DIR, exist_ok=True)
-    _cleanup_expired_audio()
+    cleanup_expired_audio()
 
     filename = _cache_filename(text, voice)
     filepath = os.path.join(AUDIO_DIR, filename)
