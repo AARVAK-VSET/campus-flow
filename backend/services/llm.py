@@ -203,6 +203,12 @@ Return a JSON object with:
 Be precise and extract all mentioned data fields."""
     user = f"Parse this command: {text}"
 
+    response = await _ask_llm(system, user)
+    try:
+        return _extract_json_object(response)
+    except (TypeError, ValueError):
+        return {"action": None, "data": {}}
+
 
 async def conversational_form_filler(current_data: dict, user_input: str, context: str) -> dict:
     """
