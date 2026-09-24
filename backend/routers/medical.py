@@ -35,7 +35,6 @@ def read_medical_records(
 
 @router.post("/", response_model=MedicalRecordOut)
 def create_medical_record(record: MedicalRecordCreate, db: Session = Depends(get_db)):
-    print(f"DEBUG: Received record: {record.dict()}")
     db_record = MedicalRecord(**record.dict())
     db.add(db_record)
     db.commit()
