@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import api from '../api';
+import api, { EmergencyQuote, fetchEmergencyQuote } from '../api';
 import VoiceButton from '../components/VoiceButton';
 import VoiceAssistant from '../components/VoiceAssistant';
 import ChartCard from '../components/ChartCard';
@@ -27,7 +27,8 @@ const Medical = () => {
 
   const [showCabModal, setShowCabModal] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
-  const [estimates, setEstimates] = useState<{ uber: string; ola: string } | null>(null);
+  const [quote, setQuote] = useState<EmergencyQuote | null>(null);
+  const [quoteError, setQuoteError] = useState('');
   const [calcLoading, setCalcLoading] = useState(false);
 
   const fetchData = async () => {
@@ -137,92 +138,55 @@ const Medical = () => {
     }
   };
 
-  const calculateDistance = (
-    lat1: number,
-    lon1: number,
-    lat2: number,
-    lon2: number
-  ) => {
-    const R = 6371; // km
-
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(lat1 * Math.PI / 180) *
-        Math.cos(lat2 * Math.PI / 180) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
-
-    const c = 2 * Math.atan2(
-      Math.sqrt(a),
-      Math.sqrt(1 - a)
-    );
-
-    return R * c;
-  };
-
   useEffect(() => {
-    if (showCabModal && selectedStudent?.address) {
-      setCalcLoading(true);
-      setEstimates(null);
-
-      const fetchEstimates = async () => {
-        // 1. Get Destination Coordinates through backend
-        const destCoords = await getGeocode(selectedStudent.address);
-
-        // Stop if geocoding failed
-        if (!destCoords) {
-          setCalcLoading(false);
-          return;
-        }
-
-        // 2. Get User Coordinates
-        if (!navigator.geolocation) {
-          toast.error('Location access is not supported by this browser.');
-          setCalcLoading(false);
-          return;
-        }
-
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            const userLat = pos.coords.latitude;
-            const userLon = pos.coords.longitude;
-
-            const distance = calculateDistance(
-              userLat,
-              userLon,
-              destCoords.lat,
-              destCoords.lon
-            );
-
-            // Mock Pricing: ₹50 base + ₹12/km (Uber)
-            //              ₹45 base + ₹11.5/km (Ola)
-            const uberPrice = 50 + distance * 12;
-            const olaPrice = 45 + distance * 11.5;
-
-            setEstimates({
-              uber: `₹${Math.round(uberPrice)}`,
-              ola: `₹${Math.round(olaPrice)}`,
-            });
-
-            setCalcLoading(false);
-          },
-          (error) => {
-            console.error('Location access failed:', error);
-
-            toast.error(
-              'Unable to access your location. Please allow location access to calculate the cab estimate.'
-            );
-
-            setCalcLoading(false);
-          }
-        );
-      };
-
-      fetchEstimates();
+    setQuote(null);
+    setQuoteError('');
+    if (!showCabModal || !selectedStudent?.address) {
+      setCalcLoading(false);
+      return;
     }
+
+    let cancelled = false;
+    setCalcLoading(true);
+
+    const fetchQuote = async () => {
+      try {
+        const destination = await getGeocode(selectedStudent.address);
+        if (!destination) {
+          if (!cancelled) setQuoteError('Could not locate the destination address.');
+          return;
+        }
+
+        if (!navigator.geolocation) {
+          throw new Error('Location access is not supported by this browser.');
+        }
+
+        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject);
+        });
+        const result = await fetchEmergencyQuote(
+          { lat: position.coords.latitude, lon: position.coords.longitude },
+          destination
+        );
+        if (!cancelled) setQuote(result);
+      } catch (error: any) {
+        if (!cancelled) {
+          const detail = error.response?.data?.detail;
+          setQuoteError(
+            typeof detail === 'string'
+              ? detail
+              : 'Could not get a validated emergency cab quote.'
+          );
+        }
+      } finally {
+        if (!cancelled) setCalcLoading(false);
+      }
+    };
+
+    fetchQuote();
+    return () => {
+      cancelled = true;
+    };
   }, [showCabModal, selectedStudent]);
 
   const handleCabSearch = (brand: string) => {
@@ -726,64 +690,41 @@ const Medical = () => {
                 >
                   Calculating estimates...
                 </div>
-              ) : estimates ? (
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-around',
-                    marginTop: '0.5rem',
-                  }}
-                >
-                  <div style={{ textAlign: 'center' }}>
-                    <div
-                      style={{
-                        fontSize: '0.75rem',
-                        opacity: 0.6,
-                      }}
-                    >
-                      Uber Min.
-                    </div>
-
-                    <div
-                      style={{
-                        color: '#fff',
-                        fontSize: '1.1rem',
-                        fontWeight: 'bold',
-                      }}
-                    >
-                      {estimates.uber}
-                    </div>
+              ) : quote ? (
+                <>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                    Distance: {quote.distance_km} km
                   </div>
-
                   <div
                     style={{
-                      width: '1px',
-                      background:
-                        'rgba(255,255,255,0.1)',
+                      display: 'flex',
+                      justifyContent: 'space-around',
+                      marginTop: '0.5rem',
                     }}
-                  />
-
-                  <div style={{ textAlign: 'center' }}>
-                    <div
-                      style={{
-                        fontSize: '0.75rem',
-                        opacity: 0.6,
-                      }}
-                    >
-                      Ola Min.
-                    </div>
-
-                    <div
-                      style={{
-                        color: '#fff',
-                        fontSize: '1.1rem',
-                        fontWeight: 'bold',
-                      }}
-                    >
-                      {estimates.ola}
-                    </div>
+                  >
+                    {quote.quotes.map((providerQuote, index) => (
+                      <React.Fragment key={providerQuote.provider}>
+                        {index > 0 && (
+                          <div style={{ width: '1px', background: 'rgba(255,255,255,0.1)' }} />
+                        )}
+                        <div style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: '0.75rem', opacity: 0.6 }}>
+                            {providerQuote.provider_name} Min.
+                          </div>
+                          <div style={{ color: '#fff', fontSize: '1.1rem', fontWeight: 'bold' }}>
+                            {new Intl.NumberFormat('en-IN', {
+                              style: 'currency',
+                              currency: quote.currency,
+                              maximumFractionDigits: 0,
+                            }).format(providerQuote.estimated_fare)}
+                          </div>
+                        </div>
+                      </React.Fragment>
+                    ))}
                   </div>
-                </div>
+                </>
+              ) : quoteError ? (
+                <div style={{ fontSize: '0.85rem', color: '#ff4d4d' }}>{quoteError}</div>
               ) : (
                 <div
                   style={{
