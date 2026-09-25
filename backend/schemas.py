@@ -1,5 +1,7 @@
 from pydantic import BaseModel
 from typing import Optional
+from typing import List
+from pydantic import Field, ConfigDict
 from datetime import datetime, date
 
 
@@ -112,4 +114,32 @@ class ParkingRecordOut(ParkingRecordBase):
 
     class Config:
         from_attributes = True
+
+# ---- Dispatch ----
+class GeoPoint(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    lat: float = Field(..., ge=-90, le=90, strict=True, allow_inf_nan=False)
+    lon: float = Field(..., ge=-180, le=180, strict=True, allow_inf_nan=False)
+
+
+class EmergencyQuoteRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    pickup: GeoPoint
+    dropoff: GeoPoint
+
+
+class ProviderQuote(BaseModel):
+    provider: str
+    provider_name: str
+    base_fare: float
+    per_km_rate: float
+    estimated_fare: float
+
+
+class EmergencyQuoteResponse(BaseModel):
+    currency: str
+    distance_km: float
+    quotes: List[ProviderQuote]
 

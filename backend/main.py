@@ -1,12 +1,16 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from backend.database import engine, Base, init_db
 from backend.services.llm import AIServiceTimeoutError
 from backend.routers import medical, stationery, announcements, parking, voice
+from backend.routers import dispatch
 import os
+import math
 from datetime import datetime
 import logging
 import time
@@ -14,6 +18,10 @@ import time
 logger = logging.getLogger(__name__)
 
 AUDIO_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "audio_cache")
+
+
+def _json_safe_float(value: float):
+    return value if math.isfinite(value) else str(value)
 
 
 @asynccontextmanager
@@ -70,6 +78,18 @@ async def log_requests(request, call_next):
 
     return response
 
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=422,
+        content={
+            "detail": jsonable_encoder(
+                exc.errors(), custom_encoder={float: _json_safe_float}
+            )
+        },
+    )
+
 # CORS - Robust regex to allow any localhost/127.0.0.1 origin on any port
 app.add_middleware(
     CORSMiddleware,
@@ -93,6 +113,7 @@ app.include_router(stationery.router)
 app.include_router(announcements.router)
 app.include_router(parking.router)
 app.include_router(voice.router)
+app.include_router(dispatch.router)
 
 @app.get("/")
 def read_root():
